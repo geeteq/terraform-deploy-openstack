@@ -32,3 +32,7 @@ ssh_public_key     = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB... user@host"
 packages = [
   "mtr"
 ]
+
+# --- Syslog forwarding ---
+syslog_host = ""    # remote syslog/logstash host — leave empty to disable
+syslog_port = 514

@@ -148,3 +148,15 @@ variable "packages" {
   type        = list(string)
   default     = ["mtr"]
 }
+
+variable "syslog_host" {
+  description = "Remote syslog host to forward logs to"
+  type        = string
+  default     = ""
+}
+
+variable "syslog_port" {
+  description = "Remote syslog port"
+  type        = number
+  default     = 514
+}

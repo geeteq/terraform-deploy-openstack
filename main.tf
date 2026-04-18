@@ -154,6 +154,8 @@ locals {
     baremetal_password = var.baremetal_password
     ssh_public_key     = var.ssh_public_key
     packages           = var.packages
+    syslog_host        = var.syslog_host
+    syslog_port        = var.syslog_port
   })
 }
 

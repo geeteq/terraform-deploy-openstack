@@ -25,8 +25,20 @@ packages:
   - ${pkg}
 %{ endfor ~}
 
+%{ if syslog_host != "" ~}
+write_files:
+  - path: /etc/rsyslog.d/forward.conf
+    permissions: '0644'
+    content: |
+      # Send all messages to remote syslog
+      *.* @${syslog_host}:${syslog_port}
+%{ endif ~}
+
 runcmd:
   - dnf install -y sssd sssd-ldap sssd-tools oddjob-mkhomedir
   - authselect select sssd with-mkhomedir --force
+%{ if syslog_host != "" ~}
+  - systemctl enable --now rsyslog
+%{ endif ~}
   - echo 'Jumpbox provisioned by terraform-deploy-openstack' > /etc/motd
   - echo 'Default password must be changed on first login.' >> /etc/motd
