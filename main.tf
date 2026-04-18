@@ -150,9 +150,10 @@ locals {
   security_group_name = var.create_security_group ? openstack_networking_secgroup_v2.jumpbox[0].name : data.openstack_networking_secgroup_v2.existing[0].name
 
   cloud_init = templatefile("${path.module}/cloud_init.tftpl", {
-    baremetal_user = var.baremetal_user
-    ssh_public_key = var.ssh_public_key
-    packages       = var.packages
+    baremetal_user     = var.baremetal_user
+    baremetal_password = var.baremetal_password
+    ssh_public_key     = var.ssh_public_key
+    packages           = var.packages
   })
 }
 

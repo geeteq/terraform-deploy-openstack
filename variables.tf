@@ -130,6 +130,13 @@ variable "baremetal_user" {
   default     = "baremetal"
 }
 
+variable "baremetal_password" {
+  description = "Default console password for the baremetal user — must be changed on first login"
+  type        = string
+  default     = "1q2w3e4r"
+  sensitive   = true
+}
+
 variable "ssh_public_key" {
   description = "SSH public key to inject into the baremetal user"
   type        = string

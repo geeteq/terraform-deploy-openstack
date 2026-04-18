@@ -25,8 +25,9 @@ root_volume_size  = 50                # root volume size in GB — required for 
 floating_ip_pool  = "public"          # set to "" to skip floating IP
 
 # --- cloud-init ---
-baremetal_user = "baremetal"
-ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB... user@host"
+baremetal_user     = "baremetal"
+baremetal_password = "1q2w3e4r"   # default console password — forced change on first login
+ssh_public_key     = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB... user@host"
 
 packages = [
   "mtr"
