@@ -30,9 +30,8 @@ data "openstack_compute_flavor_v2" "jumpbox" {
 # ---------------------------------------------------------------------------
 
 data "openstack_networking_network_v2" "external" {
-  count    = var.create_router ? 1 : 0
-  name     = var.external_network_name
-  external = true
+  count = (var.create_router && var.external_network_name != "") ? 1 : 0
+  name  = var.external_network_name
 }
 
 # ---------------------------------------------------------------------------
