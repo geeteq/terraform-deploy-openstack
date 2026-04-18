@@ -133,11 +133,37 @@ if [[ "${CREATE_NETWORK}" == "true" && -n "${NETWORK_NAME}" ]]; then
   sync_resource "Network" "openstack_networking_network_v2.jumpbox[0]" "network" "${NETWORK_NAME}"
 fi
 
-if [[ "${CREATE_ROUTER}" == "true" && -n "${ROUTER_NAME}" ]]; then
-  sync_resource "Router" "openstack_networking_router_v2.jumpbox[0]" "router" "${ROUTER_NAME}"
-  # Also clear the router interface from state if router was removed
-  if ! in_state "openstack_networking_router_v2.jumpbox[0]"; then
-    remove_from_state "openstack_networking_router_interface_v2.jumpbox[0]"
+EXTRA_VARS=""
+
+if [[ -n "${ROUTER_NAME}" ]]; then
+  echo "[Router] Checking '${ROUTER_NAME}' ..."
+
+  ROUTER_OS_ID=$(exists_in_openstack "router" "${ROUTER_NAME}")
+
+  if [[ "${CREATE_ROUTER}" == "true" ]]; then
+    # Managed by Terraform — run full sync
+    if in_state "openstack_networking_router_v2.jumpbox[0]" && [[ -z "${ROUTER_OS_ID}" ]]; then
+      echo "[Router] Deleted outside Terraform — removing stale state so it can be recreated."
+      remove_from_state "openstack_networking_router_v2.jumpbox[0]"
+      remove_from_state "openstack_networking_router_interface_v2.jumpbox[0]"
+    elif ! in_state "openstack_networking_router_v2.jumpbox[0]" && [[ -n "${ROUTER_OS_ID}" ]]; then
+      echo "[Router] Exists in OpenStack (${ROUTER_OS_ID}) — importing."
+      terraform import "openstack_networking_router_v2.jumpbox[0]" "${ROUTER_OS_ID}"
+    elif [[ -n "${ROUTER_OS_ID}" ]]; then
+      echo "[Router] In sync."
+    else
+      echo "[Router] Not found — Terraform will create it."
+    fi
+
+  else
+    # create_router = false — expected to exist already
+    if [[ -z "${ROUTER_OS_ID}" ]]; then
+      echo "[Router] '${ROUTER_NAME}' not found in OpenStack but create_router = false."
+      echo "[Router] Overriding to create_router = true so Terraform recreates it."
+      EXTRA_VARS="-var=create_router=true"
+    else
+      echo "[Router] Exists (${ROUTER_OS_ID}) — data source will resolve it."
+    fi
   fi
 fi
 
@@ -148,4 +174,4 @@ fi
 echo ""
 echo "=== Running terraform apply ==="
 echo ""
-terraform apply -var-file="${TFVARS}"
+terraform apply -var-file="${TFVARS}" ${EXTRA_VARS}
