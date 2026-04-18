@@ -27,10 +27,11 @@ data "openstack_compute_flavor_v2" "jumpbox" {
 }
 
 # ---------------------------------------------------------------------------
-# External network (used for router gateway and floating IPs)
+# External network — only looked up when creating a router or floating IP
 # ---------------------------------------------------------------------------
 
 data "openstack_networking_network_v2" "external" {
+  count    = var.create_router ? 1 : 0
   name     = var.external_network_name
   external = true
 }
@@ -72,12 +73,13 @@ resource "openstack_networking_router_v2" "jumpbox" {
   count               = var.create_router ? 1 : 0
   name                = var.router_name
   admin_state_up      = true
-  external_network_id = data.openstack_networking_network_v2.external.id
+  external_network_id = data.openstack_networking_network_v2.external[0].id
 }
 
+# Attach new subnet to router (works whether router is new or existing)
 resource "openstack_networking_router_interface_v2" "jumpbox" {
-  count     = var.create_network && var.create_router ? 1 : 0
-  router_id = openstack_networking_router_v2.jumpbox[0].id
+  count     = var.create_network ? 1 : 0
+  router_id = var.create_router ? openstack_networking_router_v2.jumpbox[0].id : data.openstack_networking_router_v2.existing[0].id
   subnet_id = openstack_networking_subnet_v2.jumpbox[0].id
 }
 
@@ -145,7 +147,7 @@ resource "openstack_networking_secgroup_rule_v2" "https_egress" {
 # ---------------------------------------------------------------------------
 
 locals {
-  network_id         = var.create_network ? openstack_networking_network_v2.jumpbox[0].id : data.openstack_networking_network_v2.existing[0].id
+  network_id          = var.create_network ? openstack_networking_network_v2.jumpbox[0].id : data.openstack_networking_network_v2.existing[0].id
   security_group_name = var.create_security_group ? openstack_networking_secgroup_v2.jumpbox[0].name : data.openstack_networking_secgroup_v2.existing[0].name
 
   cloud_init = templatefile("${path.module}/cloud_init.tftpl", {
@@ -187,7 +189,7 @@ resource "openstack_compute_instance_v2" "jumpbox" {
 }
 
 # ---------------------------------------------------------------------------
-# Floating IP
+# Floating IP — only when floating_ip_pool is set
 # ---------------------------------------------------------------------------
 
 resource "openstack_networking_floatingip_v2" "jumpbox" {

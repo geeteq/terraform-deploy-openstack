@@ -43,8 +43,9 @@ variable "dns_nameservers" {
 }
 
 variable "external_network_name" {
-  description = "Name of the external network used for the router gateway and floating IPs"
+  description = "Name of the external network used for the router gateway. Required only when create_router = true."
   type        = string
+  default     = ""
 }
 
 # ---------------------------------------------------------------------------
