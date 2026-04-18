@@ -41,6 +41,7 @@ NETWORK_NAME=$(get_var network_name)
 CREATE_NETWORK=$(get_var create_network)
 ROUTER_NAME=$(get_var router_name)
 CREATE_ROUTER=$(get_var create_router)
+VM_NAME=$(get_var vm_name)
 
 echo "=== Pre-flight idempotency check ==="
 echo ""
@@ -127,6 +128,32 @@ PYEOF
       echo "[Router] Import complete."
     else
       echo "[Router] '${ROUTER_NAME}' not found — Terraform will create it."
+    fi
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Import existing VM instance if needed
+# ---------------------------------------------------------------------------
+
+if [[ -n "${VM_NAME}" ]]; then
+  if in_state "openstack_compute_instance_v2.jumpbox"; then
+    echo "[VM] Already in state — skipping import."
+  else
+    echo "[VM] Checking if '${VM_NAME}' exists in OpenStack ..."
+    VM_ID=$(python3 - <<PYEOF
+import openstack, os
+conn = openstack.connect(auth_url=os.environ['OS_AUTH_URL'], insecure=True)
+server = conn.compute.find_server("${VM_NAME}", ignore_missing=True)
+print(server.id if server else "")
+PYEOF
+    )
+    if [[ -n "${VM_ID}" ]]; then
+      echo "[VM] '${VM_NAME}' exists (${VM_ID}) — importing into Terraform state ..."
+      terraform import "openstack_compute_instance_v2.jumpbox" "${VM_ID}"
+      echo "[VM] Import complete — Terraform will manage existing VM, not create a new one."
+    else
+      echo "[VM] '${VM_NAME}' not found — Terraform will create it."
     fi
   fi
 fi
