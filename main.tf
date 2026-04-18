@@ -72,7 +72,7 @@ resource "openstack_networking_router_v2" "jumpbox" {
   count               = var.create_router ? 1 : 0
   name                = var.router_name
   admin_state_up      = true
-  external_network_id = data.openstack_networking_network_v2.external[0].id
+  external_network_id = var.external_network_name != "" ? data.openstack_networking_network_v2.external[0].id : null
 }
 
 # Attach new subnet to router (works whether router is new or existing)
