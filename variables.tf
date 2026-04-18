@@ -108,6 +108,12 @@ variable "availability_zone" {
   default     = "nova"
 }
 
+variable "root_volume_size" {
+  description = "Root volume size in GB — required for zero-disk flavors (e.g. 8cpu-16G-0G)"
+  type        = number
+  default     = 50
+}
+
 variable "floating_ip_pool" {
   description = "External network name for floating IP allocation. Leave empty to skip."
   type        = string

@@ -21,6 +21,7 @@ vm_name           = "jumpbox"
 image_name        = "rhel9"
 flavor_name       = "m1.medium"
 availability_zone = "nova"
+root_volume_size  = 50                # root volume size in GB — required for zero-disk flavors
 floating_ip_pool  = "public"          # set to "" to skip floating IP
 
 # --- cloud-init ---

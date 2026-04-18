@@ -162,10 +162,19 @@ locals {
 
 resource "openstack_compute_instance_v2" "jumpbox" {
   name              = var.vm_name
-  image_id          = data.openstack_images_image_v2.rhel9.id
   flavor_id         = data.openstack_compute_flavor_v2.jumpbox.id
   availability_zone = var.availability_zone
   user_data         = local.cloud_init
+
+  # Boot from a volume — required for zero-disk flavors
+  block_device {
+    uuid                  = data.openstack_images_image_v2.rhel9.id
+    source_type           = "image"
+    destination_type      = "volume"
+    volume_size           = var.root_volume_size
+    boot_index            = 0
+    delete_on_termination = true
+  }
 
   network {
     uuid = local.network_id
@@ -179,7 +188,7 @@ resource "openstack_compute_instance_v2" "jumpbox" {
   }
 
   lifecycle {
-    ignore_changes = [image_id]
+    ignore_changes = [block_device]
   }
 
   depends_on = [
