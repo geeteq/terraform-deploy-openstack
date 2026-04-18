@@ -7,7 +7,6 @@ terraform {
     }
   }
 
-  backend "http" {}
 }
 
 provider "openstack" {
