@@ -26,5 +26,7 @@ packages:
 %{ endfor ~}
 
 runcmd:
+  - dnf install -y sssd sssd-ldap sssd-tools oddjob-mkhomedir
+  - authselect select sssd with-mkhomedir --force
   - echo 'Jumpbox provisioned by terraform-deploy-openstack' > /etc/motd
   - echo 'Default password must be changed on first login.' >> /etc/motd
