@@ -6,6 +6,8 @@ terraform {
       version = "~> 1.54"
     }
   }
+
+  backend "http" {}
 }
 
 provider "openstack" {
