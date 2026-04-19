@@ -84,6 +84,12 @@ variable "security_group_name" {
 # VM
 # ---------------------------------------------------------------------------
 
+variable "sectag" {
+  description = "Security tag applied to the VM instance metadata"
+  type        = string
+  default     = "rsz"
+}
+
 variable "vm_name" {
   description = "Name of the VM to provision"
   type        = string
