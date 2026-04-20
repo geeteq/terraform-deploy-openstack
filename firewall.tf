@@ -13,30 +13,25 @@ resource "openstack_networking_secgroup_v2" "ingress" {
   description = "Ingress zone — who is allowed to connect to the jumpbox"
 }
 
-locals {
-  ingress_cidrs = var.create_security_groups ? toset(var.allowed_ingress_cidrs) : toset([])
-  egress_cidrs  = var.create_security_groups ? toset(var.allowed_egress_cidrs) : toset([])
-}
-
 resource "openstack_networking_secgroup_rule_v2" "ssh_ingress" {
-  for_each          = local.ingress_cidrs
+  count             = var.create_security_groups ? 1 : 0
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 22
   port_range_max    = 22
-  remote_ip_prefix  = each.value
+  remote_ip_prefix  = var.ingress_cidr
   security_group_id = openstack_networking_secgroup_v2.ingress[0].id
 }
 
 resource "openstack_networking_secgroup_rule_v2" "https_ingress" {
-  for_each          = local.ingress_cidrs
+  count             = var.create_security_groups ? 1 : 0
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 443
   port_range_max    = 443
-  remote_ip_prefix  = each.value
+  remote_ip_prefix  = var.ingress_cidr
   security_group_id = openstack_networking_secgroup_v2.ingress[0].id
 }
 
@@ -56,23 +51,23 @@ resource "openstack_networking_secgroup_v2" "egress" {
 }
 
 resource "openstack_networking_secgroup_rule_v2" "ssh_egress" {
-  for_each          = local.egress_cidrs
+  count             = var.create_security_groups ? 1 : 0
   direction         = "egress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 22
   port_range_max    = 22
-  remote_ip_prefix  = each.value
+  remote_ip_prefix  = var.egress_cidr
   security_group_id = openstack_networking_secgroup_v2.egress[0].id
 }
 
 resource "openstack_networking_secgroup_rule_v2" "https_egress" {
-  for_each          = local.egress_cidrs
+  count             = var.create_security_groups ? 1 : 0
   direction         = "egress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 443
   port_range_max    = 443
-  remote_ip_prefix  = each.value
+  remote_ip_prefix  = var.egress_cidr
   security_group_id = openstack_networking_secgroup_v2.egress[0].id
 }

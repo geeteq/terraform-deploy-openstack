@@ -11,11 +11,10 @@ Step-by-step guide to installing Terraform on macOS and deploying a RHEL9 VM on 
 3. [Clone This Repository](#3-clone-this-repository)
 4. [Configure Your Deployment](#4-configure-your-deployment)
 5. [Firewall Security Zones](#5-firewall-security-zones)
-6. [NetBox BMC Firewall Generator](#6-netbox-bmc-firewall-generator)
-7. [Deploy the VM](#7-deploy-the-vm)
-8. [Connect to the VM](#8-connect-to-the-vm)
-9. [Destroy the VM](#9-destroy-the-vm)
-10. [Troubleshooting](#10-troubleshooting)
+6. [Deploy the VM](#6-deploy-the-vm)
+7. [Connect to the VM](#7-connect-to-the-vm)
+8. [Destroy the VM](#8-destroy-the-vm)
+9. [Troubleshooting](#9-troubleshooting)
 
 ---
 
@@ -215,23 +214,14 @@ Both groups open ports **22 (SSH/TCP)** and **443 (HTTPS/TCP)** by default.
 
 ### Configuring CIDRs
 
-Control which prefixes are allowed per zone using lists in `terraform.tfvars`:
+Set a single wide range per zone in `terraform.tfvars` for initial deployment:
 
 ```hcl
-# Who can connect TO the jumpbox
-allowed_ingress_cidrs = [
-  "10.10.0.0/16",
-  "192.168.1.0/24",
-]
-
-# Where the jumpbox can connect TO
-allowed_egress_cidrs = [
-  "10.20.0.0/16",
-  "172.16.5.0/24",
-]
+ingress_cidr = "10.0.0.0/8"   # who can connect TO the jumpbox
+egress_cidr  = "10.0.0.0/8"   # where the jumpbox can connect TO
 ```
 
-Each CIDR produces one rule per port. Adding or removing a CIDR only affects that prefix's rules in Terraform state — other rules are not touched.
+> For per-prefix microsegmentation, see the `tf4.0` branch which uses NetBox to generate per-prefix rules automatically.
 
 ### Using existing security groups
 
@@ -245,57 +235,7 @@ egress_security_group_name  = "my-egress-sg"
 
 ---
 
-## 6. NetBox BMC Firewall Generator
-
-`netbox_bmc_firewall.py` queries NetBox for prefixes tagged `bmc-management-prod` and generates `firewall_bmc.tf` with ingress rules for:
-
-| Port | Protocol | Service |
-|------|----------|---------|
-| 22   | TCP      | SSH     |
-| 443  | TCP      | HTTPS   |
-| 161  | UDP      | SNMP    |
-
-Rules are placed in the **egress** security group (what the jumpbox reaches out to).
-
-### Requirements
-
-```bash
-pip install requests
-```
-
-### Usage
-
-```bash
-# Via environment variables (recommended — keeps token out of shell history)
-export NETBOX_URL=https://netbox.example.com
-export NETBOX_TOKEN=your-token-here
-python3 netbox_bmc_firewall.py
-
-# Or pass arguments directly
-python3 netbox_bmc_firewall.py --url https://netbox.example.com --token abc123
-
-# Self-signed / internal CA certificate
-python3 netbox_bmc_firewall.py --insecure
-python3 netbox_bmc_firewall.py --ca-cert /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
-
-# Custom output file
-python3 netbox_bmc_firewall.py --output firewall_bmc.tf
-```
-
-The script validates the token before fetching prefixes and exits with a clear error message if the token is invalid, expired, or lacks permissions.
-
-After generating, review and apply:
-
-```bash
-terraform plan
-terraform apply
-```
-
-> `firewall_bmc.tf` is machine-generated — do not edit it manually. Re-run the script to regenerate.
-
----
-
-## 7. Deploy the VM
+## 6. Deploy the VM
 
 ### Initialise Terraform
 
@@ -359,7 +299,7 @@ egress_security_group  = "jumpbox-egress-sg"
 
 ---
 
-## 8. Connect to the VM
+## 7. Connect to the VM
 
 Use the `ssh_command` from the Terraform output:
 
@@ -375,7 +315,7 @@ mtr --version
 
 ---
 
-## 9. Destroy the VM
+## 8. Destroy the VM
 
 To delete all resources created by Terraform:
 
@@ -387,7 +327,7 @@ Type `yes` when prompted. This removes the VM, security groups, and floating IP 
 
 ---
 
-## 10. Troubleshooting
+## 9. Troubleshooting
 
 ### "Error: Error creating OpenStack server"
 
@@ -420,21 +360,6 @@ openstack application credential create \
 ### VM is ACTIVE but SSH times out
 
 Cloud-init is still running. Wait 2-3 minutes and try again. You can monitor progress from the Horizon console log.
-
-### NetBox script: SSL certificate error
-
-Use `--insecure` to skip verification or `--ca-cert` to provide your internal CA bundle:
-
-```bash
-python3 netbox_bmc_firewall.py --insecure
-python3 netbox_bmc_firewall.py --ca-cert /path/to/ca-bundle.pem
-```
-
-### NetBox script: 403 Forbidden
-
-- Token is invalid or expired — check **NetBox → Admin → API Tokens**
-- Token may lack read permission on IPAM prefixes
-- NetBox may restrict API access by source IP
 
 ### How to re-run without destroying
 

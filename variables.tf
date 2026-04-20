@@ -86,16 +86,16 @@ variable "egress_security_group_name" {
   default     = "jumpbox-egress-sg"
 }
 
-variable "allowed_ingress_cidrs" {
-  description = "List of CIDRs allowed to connect to the jumpbox (ingress zone)"
-  type        = list(string)
-  default     = ["0.0.0.0/0"]
+variable "ingress_cidr" {
+  description = "CIDR allowed to connect to the jumpbox (ingress zone)"
+  type        = string
+  default     = "10.0.0.0/8"
 }
 
-variable "allowed_egress_cidrs" {
-  description = "List of CIDRs the jumpbox is allowed to connect to (egress zone)"
-  type        = list(string)
-  default     = ["0.0.0.0/0"]
+variable "egress_cidr" {
+  description = "CIDR the jumpbox is allowed to connect to (egress zone)"
+  type        = string
+  default     = "10.0.0.0/8"
 }
 
 # ---------------------------------------------------------------------------
