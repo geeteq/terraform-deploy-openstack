@@ -68,22 +68,16 @@ variable "router_name" {
 # Security group
 # ---------------------------------------------------------------------------
 
-variable "create_security_groups" {
-  description = "Set to true to create both security groups. Set to false to use existing ones."
+variable "create_security_group" {
+  description = "Set to true to create the security group. Set to false to use an existing one."
   type        = bool
   default     = true
 }
 
-variable "ingress_security_group_name" {
-  description = "Name of the ingress security group (who can talk to the jumpbox)"
+variable "security_group_name" {
+  description = "Name of the security group to create or look up"
   type        = string
-  default     = "jumpbox-ingress-sg"
-}
-
-variable "egress_security_group_name" {
-  description = "Name of the egress security group (what the jumpbox can talk to)"
-  type        = string
-  default     = "jumpbox-egress-sg"
+  default     = "jumpbox-sg"
 }
 
 variable "ingress_cidr" {
