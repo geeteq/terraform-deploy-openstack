@@ -10,7 +10,7 @@ terraform {
 }
 
 provider "openstack" {
-  insecure = true
+  tls_insecure_skip_verify = true
 }
 
 # ---------------------------------------------------------------------------
