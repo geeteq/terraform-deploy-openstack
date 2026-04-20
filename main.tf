@@ -150,8 +150,8 @@ resource "openstack_networking_floatingip_v2" "jumpbox" {
   pool  = var.floating_ip_pool
 }
 
-resource "openstack_compute_floatingip_associate_v2" "jumpbox" {
+resource "openstack_networking_floatingip_associate_v2" "jumpbox" {
   count       = var.floating_ip_pool != "" ? 1 : 0
   floating_ip = openstack_networking_floatingip_v2.jumpbox[0].address
-  instance_id = openstack_compute_instance_v2.jumpbox.id
+  port_id     = openstack_compute_instance_v2.jumpbox.network[0].port
 }
