@@ -21,9 +21,11 @@ import logging
 import os
 import re
 import sys
+import warnings
 
 try:
     import requests
+    from requests.packages.urllib3.exceptions import InsecureRequestWarning
 except ImportError:
     sys.exit("Missing dependency: pip install requests")
 
@@ -41,16 +43,18 @@ log = logging.getLogger(__name__)
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--url",    default=os.getenv("NETBOX_URL"),   help="NetBox base URL (env: NETBOX_URL)")
-    parser.add_argument("--token",  default=os.getenv("NETBOX_TOKEN"), help="NetBox API token (env: NETBOX_TOKEN)")
-    parser.add_argument("--tag",    default=TAG,                        help=f"NetBox tag to filter (default: {TAG})")
-    parser.add_argument("--output", default=OUTPUT_FILE,                help=f"Output .tf file (default: {OUTPUT_FILE})")
+    parser.add_argument("--url",      default=os.getenv("NETBOX_URL"),   help="NetBox base URL (env: NETBOX_URL)")
+    parser.add_argument("--token",    default=os.getenv("NETBOX_TOKEN"), help="NetBox API token (env: NETBOX_TOKEN)")
+    parser.add_argument("--tag",      default=TAG,                        help=f"NetBox tag to filter (default: {TAG})")
+    parser.add_argument("--output",   default=OUTPUT_FILE,                help=f"Output .tf file (default: {OUTPUT_FILE})")
+    parser.add_argument("--insecure", action="store_true",                help="Disable SSL certificate verification (self-signed certs)")
+    parser.add_argument("--ca-cert",  default=os.getenv("NETBOX_CA_CERT"), help="Path to CA bundle for SSL verification (env: NETBOX_CA_CERT)")
     parser.add_argument("--secgroup-id", default=None,
                         help="Security group ID or resource ref. Defaults to openstack_networking_secgroup_v2.jumpbox[0].id")
     return parser.parse_args()
 
 
-def fetch_prefixes(base_url, token, tag):
+def fetch_prefixes(base_url, token, tag, verify):
     url = f"{base_url.rstrip('/')}/api/ipam/prefixes/"
     headers = {"Authorization": f"Token {token}", "Accept": "application/json"}
     prefixes = []
@@ -58,7 +62,7 @@ def fetch_prefixes(base_url, token, tag):
 
     while True:
         log.info("GET %s  (offset=%d)", url, params["offset"])
-        resp = requests.get(url, headers=headers, params=params, timeout=15)
+        resp = requests.get(url, headers=headers, params=params, timeout=15, verify=verify)
         resp.raise_for_status()
         data = resp.json()
         results = data.get("results", [])
@@ -121,8 +125,17 @@ def main():
 
     secgroup_ref = args.secgroup_id or "openstack_networking_secgroup_v2.egress[0].id"
 
+    if args.insecure:
+        warnings.filterwarnings("ignore", category=InsecureRequestWarning)
+        log.warning("SSL verification disabled — connection is not fully secure")
+        verify = False
+    elif args.ca_cert:
+        verify = args.ca_cert
+    else:
+        verify = True
+
     log.info("Fetching prefixes tagged '%s' from %s", args.tag, args.url)
-    prefixes = fetch_prefixes(args.url, args.token, args.tag)
+    prefixes = fetch_prefixes(args.url, args.token, args.tag, verify)
     log.info("Found %d prefix(es)", len(prefixes))
     for p in sorted(prefixes):
         log.info("  %s", p)
