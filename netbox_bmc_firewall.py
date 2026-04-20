@@ -54,6 +54,38 @@ def parse_args():
     return parser.parse_args()
 
 
+def test_token(base_url, token, verify):
+    """Validate the token against /api/users/tokens/ and report permissions."""
+    url = f"{base_url.rstrip('/')}/api/users/tokens/"
+    headers = {"Authorization": f"Token {token}", "Accept": "application/json"}
+    log.info("Testing token against %s", url)
+    try:
+        resp = requests.get(url, headers=headers, timeout=15, verify=verify)
+    except requests.exceptions.ConnectionError as e:
+        sys.exit(f"Connection error: {e}")
+    except requests.exceptions.SSLError as e:
+        sys.exit(f"SSL error: {e}\n  Try --insecure or --ca-cert to handle certificate issues.")
+
+    if resp.status_code == 200:
+        data = resp.json()
+        count = data.get("count", "?")
+        log.info("Token OK — %s token(s) visible to this user", count)
+        return
+    if resp.status_code == 403:
+        sys.exit(
+            "Token test failed: 403 Forbidden.\n"
+            "  Possible causes:\n"
+            "    - Token is invalid or expired\n"
+            "    - Token lacks read permission on IPAM prefixes\n"
+            "    - NetBox API access is restricted by allowed IPs\n"
+            "  Check: NetBox → Admin → API Tokens and verify the token is active."
+        )
+    if resp.status_code == 401:
+        sys.exit("Token test failed: 401 Unauthorized — token is missing or malformed.")
+
+    resp.raise_for_status()
+
+
 def fetch_prefixes(base_url, token, tag, verify):
     url = f"{base_url.rstrip('/')}/api/ipam/prefixes/"
     headers = {"Authorization": f"Token {token}", "Accept": "application/json"}
@@ -63,6 +95,8 @@ def fetch_prefixes(base_url, token, tag, verify):
     while True:
         log.info("GET %s  (offset=%d)", url, params["offset"])
         resp = requests.get(url, headers=headers, params=params, timeout=15, verify=verify)
+        if resp.status_code == 403:
+            sys.exit("403 Forbidden fetching prefixes — token may lack IPAM read permissions.")
         resp.raise_for_status()
         data = resp.json()
         results = data.get("results", [])
@@ -134,6 +168,7 @@ def main():
     else:
         verify = True
 
+    test_token(args.url, args.token, verify)
     log.info("Fetching prefixes tagged '%s' from %s", args.tag, args.url)
     prefixes = fetch_prefixes(args.url, args.token, args.tag, verify)
     log.info("Found %d prefix(es)", len(prefixes))
