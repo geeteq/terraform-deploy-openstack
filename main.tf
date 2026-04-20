@@ -9,6 +9,10 @@ terraform {
 
 }
 
+# SECURITY WARNING: tls_insecure_skip_verify disables TLS certificate validation.
+# All API traffic to OpenStack is sent without verifying the server's identity.
+# Only use this in trusted private environments with self-signed certificates.
+# Remove this setting and configure a proper CA bundle for production deployments.
 provider "openstack" {
   tls_insecure_skip_verify = true
 }

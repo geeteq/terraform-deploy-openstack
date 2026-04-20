@@ -80,6 +80,9 @@ variable "security_group_name" {
   default     = "jumpbox-sg"
 }
 
+# SECURITY WARNING: Default CIDRs are broad RFC1918 ranges for initial testing only.
+# Restrict these to the smallest possible ranges before deploying to production.
+# Use the tf4.0 branch for per-prefix microsegmentation via NetBox.
 variable "ingress_cidrs" {
   description = "List of CIDRs allowed to connect to the jumpbox (ingress zone)"
   type        = list(string)
@@ -152,6 +155,9 @@ variable "baremetal_user" {
   default     = "baremetal"
 }
 
+# SECURITY WARNING: This default password is a placeholder and must be overridden
+# in terraform.tfvars before deployment. Change it on first login via console.
+# Never commit a real password to version control.
 variable "baremetal_password" {
   description = "Default console password for the baremetal user — must be changed on first login"
   type        = string

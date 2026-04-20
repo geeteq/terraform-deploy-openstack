@@ -15,8 +15,6 @@ resource "openstack_networking_secgroup_v2" "jumpbox" {
 
 # Ingress
 
-# Ingress
-
 locals {
   ingress_cidrs = var.create_security_group ? toset(var.ingress_cidrs) : toset([])
   egress_cidrs  = var.create_security_group ? toset(var.egress_cidrs) : toset([])
