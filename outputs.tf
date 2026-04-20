@@ -27,9 +27,14 @@ output "network_id" {
   value       = local.network_id
 }
 
-output "security_group_name" {
-  description = "Name of the security group (created or existing)"
-  value       = local.security_group_name
+output "ingress_security_group" {
+  description = "Name of the ingress security group (who can talk to the jumpbox)"
+  value       = local.ingress_security_group
+}
+
+output "egress_security_group" {
+  description = "Name of the egress security group (what the jumpbox can talk to)"
+  value       = local.egress_security_group
 }
 
 output "router_id" {

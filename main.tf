@@ -87,8 +87,9 @@ resource "openstack_networking_router_interface_v2" "jumpbox" {
 # ---------------------------------------------------------------------------
 
 locals {
-  network_id          = var.create_network ? openstack_networking_network_v2.jumpbox[0].id : data.openstack_networking_network_v2.existing[0].id
-  security_group_name = var.create_security_group ? openstack_networking_secgroup_v2.jumpbox[0].name : data.openstack_networking_secgroup_v2.existing[0].name
+  network_id               = var.create_network ? openstack_networking_network_v2.jumpbox[0].id : data.openstack_networking_network_v2.existing[0].id
+  ingress_security_group   = var.create_security_groups ? openstack_networking_secgroup_v2.ingress[0].name : data.openstack_networking_secgroup_v2.ingress_existing[0].name
+  egress_security_group    = var.create_security_groups ? openstack_networking_secgroup_v2.egress[0].name : data.openstack_networking_secgroup_v2.egress_existing[0].name
 
   cloud_init = templatefile("${path.module}/cloud_init.tftpl", {
     baremetal_user     = var.baremetal_user
@@ -124,7 +125,7 @@ resource "openstack_compute_instance_v2" "jumpbox" {
     uuid = local.network_id
   }
 
-  security_groups = [local.security_group_name]
+  security_groups = [local.ingress_security_group, local.egress_security_group]
 
   metadata = {
     provisioned_by = "terraform-deploy-openstack"

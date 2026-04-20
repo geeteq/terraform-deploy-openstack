@@ -119,7 +119,7 @@ def main():
     if not args.token:
         sys.exit("Error: NetBox token required (--token or NETBOX_TOKEN env var)")
 
-    secgroup_ref = args.secgroup_id or "openstack_networking_secgroup_v2.jumpbox[0].id"
+    secgroup_ref = args.secgroup_id or "openstack_networking_secgroup_v2.egress[0].id"
 
     log.info("Fetching prefixes tagged '%s' from %s", args.tag, args.url)
     prefixes = fetch_prefixes(args.url, args.token, args.tag)
