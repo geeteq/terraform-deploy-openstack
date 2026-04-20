@@ -49,9 +49,8 @@ data "openstack_networking_network_v2" "existing" {
 }
 
 resource "openstack_networking_network_v2" "jumpbox" {
-  count          = var.create_network ? 1 : 0
-  name           = var.network_name
-  admin_state_up = true
+  count = var.create_network ? 1 : 0
+  name  = var.network_name
 }
 
 resource "openstack_networking_subnet_v2" "jumpbox" {
@@ -75,7 +74,6 @@ data "openstack_networking_router_v2" "existing" {
 resource "openstack_networking_router_v2" "jumpbox" {
   count               = var.create_router ? 1 : 0
   name                = var.router_name
-  admin_state_up      = true
   external_network_id = var.external_network_name != "" ? data.openstack_networking_network_v2.external[0].id : null
 }
 
