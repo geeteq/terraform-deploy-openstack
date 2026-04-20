@@ -89,6 +89,10 @@ elif kind == "vm":
     obj = conn.compute.find_server(name, ignore_missing=True)
     print(obj.id if obj else "")
 
+elif kind == "subnet":
+    obj = conn.network.find_subnet(name, ignore_missing=True)
+    print(obj.id if obj else "")
+
 elif kind == "router_iface":
     # name = "<router_id>/<subnet_name>"
     router_id, subnet_name = name.split("/", 1)
@@ -152,6 +156,10 @@ fi
 
 if [[ "${CREATE_NETWORK}" == "true" && -n "${NETWORK_NAME}" ]]; then
   sync_resource "Network" "openstack_networking_network_v2.jumpbox[0]" "network" "${NETWORK_NAME}"
+fi
+
+if [[ "${CREATE_NETWORK}" == "true" && -n "${SUBNET_NAME}" ]]; then
+  sync_resource "Subnet" "openstack_networking_subnet_v2.jumpbox[0]" "subnet" "${SUBNET_NAME}"
 fi
 
 EXTRA_VARS=""
