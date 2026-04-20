@@ -2,6 +2,7 @@
 # Idempotent Terraform deploy for OpenStack.
 # - Imports existing resources into state before applying
 # - Removes stale state entries for resources deleted outside Terraform
+# - Skips apply entirely if nothing has changed
 #
 # Usage:
 #   source setup_env.sh [clouds.yaml] [cloud-name]
@@ -62,7 +63,7 @@ remove_from_state() {
 }
 
 exists_in_openstack() {
-  # $1 = resource type: sg | network | router | vm | subnet | router_iface
+  # $1 = resource type: sg | network | router | vm | router_iface
   # $2 = name  (for router_iface: "<router_id>/<subnet_name>")
   python3 - "${1}" "${2}" <<'PYEOF'
 import openstack, os, sys
@@ -88,10 +89,6 @@ elif kind == "vm":
     obj = conn.compute.find_server(name, ignore_missing=True)
     print(obj.id if obj else "")
 
-elif kind == "subnet":
-    obj = conn.network.find_subnet(name, ignore_missing=True)
-    print(obj.id if obj else "")
-
 elif kind == "router_iface":
     # name = "<router_id>/<subnet_name>"
     router_id, subnet_name = name.split("/", 1)
@@ -99,10 +96,13 @@ elif kind == "router_iface":
     if not subnet:
         print("")
         sys.exit(0)
-    # Find the port on this router attached to this subnet
-    for port in conn.network.ports(device_id=router_id, fixed_ips=f"subnet_id={subnet.id}"):
-        print(subnet.id)  # Terraform imports router_iface by subnet_id
-        sys.exit(0)
+    # Walk all ports on the router and match by subnet_id
+    for port in conn.network.ports(device_id=router_id):
+        for fixed_ip in port.fixed_ips:
+            if fixed_ip.get("subnet_id") == subnet.id:
+                # Terraform imports router_iface by subnet_id (when created with subnet_id)
+                print(subnet.id)
+                sys.exit(0)
     print("")
 
 else:
@@ -162,7 +162,6 @@ if [[ -n "${ROUTER_NAME}" ]]; then
   ROUTER_OS_ID=$(exists_in_openstack "router" "${ROUTER_NAME}")
 
   if [[ "${CREATE_ROUTER}" == "true" ]]; then
-    # Managed by Terraform — run full sync
     if in_state "openstack_networking_router_v2.jumpbox[0]" && [[ -z "${ROUTER_OS_ID}" ]]; then
       echo "[Router] Deleted outside Terraform — removing stale state so it can be recreated."
       remove_from_state "openstack_networking_router_v2.jumpbox[0]"
@@ -175,9 +174,7 @@ if [[ -n "${ROUTER_NAME}" ]]; then
     else
       echo "[Router] Not found — Terraform will create it."
     fi
-
   else
-    # create_router = false — expected to exist already
     if [[ -z "${ROUTER_OS_ID}" ]]; then
       echo "[Router] '${ROUTER_NAME}' not found in OpenStack but create_router = false."
       echo "[Router] Overriding to create_router = true so Terraform recreates it."
@@ -209,7 +206,34 @@ if [[ -n "${VM_NAME}" ]]; then
   sync_resource "VM" "openstack_compute_instance_v2.jumpbox" "vm" "${VM_NAME}"
 fi
 
+# ---------------------------------------------------------------------------
+# Plan — skip apply if nothing has changed
+# ---------------------------------------------------------------------------
+
 echo ""
-echo "=== Running terraform apply ==="
+echo "=== Checking for changes ==="
 echo ""
-terraform apply -var-file="${TFVARS}" ${EXTRA_VARS}
+
+set +e
+terraform plan -var-file="${TFVARS}" ${EXTRA_VARS} -detailed-exitcode -out=tfplan.out 2>&1
+PLAN_EXIT=$?
+set -e
+
+# exit code 0 = no changes, 1 = error, 2 = changes pending
+if [[ ${PLAN_EXIT} -eq 0 ]]; then
+  echo ""
+  echo "=== No changes — infrastructure is up to date. Nothing to apply. ==="
+  rm -f tfplan.out
+  exit 0
+elif [[ ${PLAN_EXIT} -eq 1 ]]; then
+  echo ""
+  echo "ERROR: terraform plan failed."
+  rm -f tfplan.out
+  exit 1
+fi
+
+echo ""
+echo "=== Applying changes ==="
+echo ""
+terraform apply tfplan.out
+rm -f tfplan.out
