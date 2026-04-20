@@ -92,10 +92,14 @@ variable "ingress_cidr" {
   default     = "10.0.0.0/8"
 }
 
-variable "egress_cidr" {
-  description = "CIDR the jumpbox is allowed to connect to (egress zone)"
-  type        = string
-  default     = "10.0.0.0/8"
+variable "egress_cidrs" {
+  description = "List of CIDRs the jumpbox is allowed to connect to (egress zone)"
+  type        = list(string)
+  default     = [
+    "10.0.0.0/8",
+    "172.16.0.0/12",
+    "192.168.0.0/16",
+  ]
 }
 
 # ---------------------------------------------------------------------------

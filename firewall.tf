@@ -50,24 +50,28 @@ resource "openstack_networking_secgroup_v2" "egress" {
   description = "Egress zone — where the jumpbox is allowed to connect to"
 }
 
+locals {
+  egress_cidrs = var.create_security_groups ? toset(var.egress_cidrs) : toset([])
+}
+
 resource "openstack_networking_secgroup_rule_v2" "ssh_egress" {
-  count             = var.create_security_groups ? 1 : 0
+  for_each          = local.egress_cidrs
   direction         = "egress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 22
   port_range_max    = 22
-  remote_ip_prefix  = var.egress_cidr
+  remote_ip_prefix  = each.value
   security_group_id = openstack_networking_secgroup_v2.egress[0].id
 }
 
 resource "openstack_networking_secgroup_rule_v2" "https_egress" {
-  count             = var.create_security_groups ? 1 : 0
+  for_each          = local.egress_cidrs
   direction         = "egress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 443
   port_range_max    = 443
-  remote_ip_prefix  = var.egress_cidr
+  remote_ip_prefix  = each.value
   security_group_id = openstack_networking_secgroup_v2.egress[0].id
 }
