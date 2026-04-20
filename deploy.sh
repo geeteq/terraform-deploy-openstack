@@ -40,6 +40,7 @@ SG_NAME=$(get_var security_group_name)
 CREATE_SG=$(get_var create_security_group)
 NETWORK_NAME=$(get_var network_name)
 CREATE_NETWORK=$(get_var create_network)
+SUBNET_NAME=$(get_var subnet_name)
 ROUTER_NAME=$(get_var router_name)
 CREATE_ROUTER=$(get_var create_router)
 VM_NAME=$(get_var vm_name)
@@ -61,8 +62,8 @@ remove_from_state() {
 }
 
 exists_in_openstack() {
-  # $1 = resource type: sg | network | router | vm
-  # $2 = name
+  # $1 = resource type: sg | network | router | vm | subnet | router_iface
+  # $2 = name  (for router_iface: "<router_id>/<subnet_name>")
   python3 - "${1}" "${2}" <<'PYEOF'
 import openstack, os, sys
 
@@ -73,17 +74,37 @@ conn = openstack.connect(auth_url=os.environ["OS_AUTH_URL"], insecure=True)
 
 if kind == "sg":
     obj = conn.network.find_security_group(name, ignore_missing=True)
+    print(obj.id if obj else "")
+
 elif kind == "network":
     obj = conn.network.find_network(name, ignore_missing=True)
+    print(obj.id if obj else "")
+
 elif kind == "router":
     obj = conn.network.find_router(name, ignore_missing=True)
+    print(obj.id if obj else "")
+
 elif kind == "vm":
     obj = conn.compute.find_server(name, ignore_missing=True)
-else:
-    obj = None
+    print(obj.id if obj else "")
 
-if obj:
-    print(obj.id)
+elif kind == "subnet":
+    obj = conn.network.find_subnet(name, ignore_missing=True)
+    print(obj.id if obj else "")
+
+elif kind == "router_iface":
+    # name = "<router_id>/<subnet_name>"
+    router_id, subnet_name = name.split("/", 1)
+    subnet = conn.network.find_subnet(subnet_name, ignore_missing=True)
+    if not subnet:
+        print("")
+        sys.exit(0)
+    # Find the port on this router attached to this subnet
+    for port in conn.network.ports(device_id=router_id, fixed_ips=f"subnet_id={subnet.id}"):
+        print(subnet.id)  # Terraform imports router_iface by subnet_id
+        sys.exit(0)
+    print("")
+
 else:
     print("")
 PYEOF
@@ -163,6 +184,23 @@ if [[ -n "${ROUTER_NAME}" ]]; then
       EXTRA_VARS="-var=create_router=true"
     else
       echo "[Router] Exists (${ROUTER_OS_ID}) — data source will resolve it."
+    fi
+  fi
+
+  # Sync the router interface — missing from state causes RouterInUse on re-runs
+  if [[ "${CREATE_NETWORK}" == "true" && -n "${ROUTER_OS_ID}" && -n "${SUBNET_NAME}" ]]; then
+    echo "[Router Interface] Checking subnet port attachment '${SUBNET_NAME}' ..."
+    if ! in_state "openstack_networking_router_interface_v2.jumpbox[0]"; then
+      IFACE_SUBNET_ID=$(exists_in_openstack "router_iface" "${ROUTER_OS_ID}/${SUBNET_NAME}")
+      if [[ -n "${IFACE_SUBNET_ID}" ]]; then
+        echo "[Router Interface] Port exists but not in state — importing (subnet ${IFACE_SUBNET_ID})."
+        terraform import "openstack_networking_router_interface_v2.jumpbox[0]" "${IFACE_SUBNET_ID}"
+        echo "[Router Interface] Import complete."
+      else
+        echo "[Router Interface] Not found — Terraform will create it."
+      fi
+    else
+      echo "[Router Interface] In sync."
     fi
   fi
 fi
