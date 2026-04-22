@@ -66,15 +66,15 @@ variable "external_network_name" {
 # ---------------------------------------------------------------------------
 
 variable "create_router" {
-  description = "Set to true to create a router. Set to false to use an existing router."
+  description = "Set to true to create a router. Set to false to skip router management (or set router_name to attach to an existing one)."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "router_name" {
-  description = "Name of the router to create or look up"
+  description = "Name of the router to create (when create_router=true) or look up (when create_router=false and non-empty). Leave empty to skip router entirely."
   type        = string
-  default     = "jumpbox-router"
+  default     = ""
 }
 
 # ---------------------------------------------------------------------------
@@ -246,7 +246,7 @@ resource "openstack_networking_subnet_v2" "jumpbox" {
 # ---------------------------------------------------------------------------
 
 data "openstack_networking_router_v2" "existing" {
-  count = var.create_router ? 0 : 1
+  count = (!var.create_router && var.router_name != "") ? 1 : 0
   name  = var.router_name
 }
 
@@ -256,9 +256,14 @@ resource "openstack_networking_router_v2" "jumpbox" {
   external_network_id = var.external_network_name != "" ? data.openstack_networking_network_v2.external[0].id : null
 }
 
+locals {
+  has_router = var.create_router || (!var.create_router && var.router_name != "")
+  router_id  = var.create_router ? openstack_networking_router_v2.jumpbox[0].id : (var.router_name != "" ? data.openstack_networking_router_v2.existing[0].id : null)
+}
+
 resource "openstack_networking_router_interface_v2" "jumpbox" {
-  count     = var.create_network ? 1 : 0
-  router_id = var.create_router ? openstack_networking_router_v2.jumpbox[0].id : data.openstack_networking_router_v2.existing[0].id
+  count     = (var.create_network && local.has_router) ? 1 : 0
+  router_id = local.router_id
   subnet_id = openstack_networking_subnet_v2.jumpbox[0].id
 }
 
@@ -430,6 +435,6 @@ output "security_group_name" {
 }
 
 output "router_id" {
-  description = "ID of the router (created or existing)"
-  value       = var.create_router ? openstack_networking_router_v2.jumpbox[0].id : data.openstack_networking_router_v2.existing[0].id
+  description = "ID of the router (created or existing), null if no router"
+  value       = local.router_id
 }
