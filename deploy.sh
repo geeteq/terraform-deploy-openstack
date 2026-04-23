@@ -169,36 +169,26 @@ fi
 
 EXTRA_VARS=""
 
-if [[ -n "${ROUTER_NAME}" ]]; then
+if [[ "${CREATE_ROUTER}" == "true" ]]; then
   echo "[Router] Checking '${ROUTER_NAME}' ..."
 
   ROUTER_OS_ID=$(exists_in_openstack "router" "${ROUTER_NAME}")
 
-  if [[ "${CREATE_ROUTER}" == "true" ]]; then
-    if in_state "openstack_networking_router_v2.jumpbox[0]" && [[ -z "${ROUTER_OS_ID}" ]]; then
-      echo "[Router] Deleted outside Terraform — removing stale state so it can be recreated."
-      remove_from_state "openstack_networking_router_v2.jumpbox[0]"
-      remove_from_state "openstack_networking_router_interface_v2.jumpbox[0]"
-    elif ! in_state "openstack_networking_router_v2.jumpbox[0]" && [[ -n "${ROUTER_OS_ID}" ]]; then
-      echo "[Router] Exists in OpenStack (${ROUTER_OS_ID}) — importing."
-      terraform import "openstack_networking_router_v2.jumpbox[0]" "${ROUTER_OS_ID}"
-    elif [[ -n "${ROUTER_OS_ID}" ]]; then
-      echo "[Router] In sync."
-    else
-      echo "[Router] Not found — Terraform will create it."
-    fi
+  if in_state "openstack_networking_router_v2.jumpbox[0]" && [[ -z "${ROUTER_OS_ID}" ]]; then
+    echo "[Router] Deleted outside Terraform — removing stale state so it can be recreated."
+    remove_from_state "openstack_networking_router_v2.jumpbox[0]"
+    remove_from_state "openstack_networking_router_interface_v2.jumpbox[0]"
+  elif ! in_state "openstack_networking_router_v2.jumpbox[0]" && [[ -n "${ROUTER_OS_ID}" ]]; then
+    echo "[Router] Exists in OpenStack (${ROUTER_OS_ID}) — importing."
+    terraform import "openstack_networking_router_v2.jumpbox[0]" "${ROUTER_OS_ID}"
+  elif [[ -n "${ROUTER_OS_ID}" ]]; then
+    echo "[Router] In sync."
   else
-    if [[ -z "${ROUTER_OS_ID}" ]]; then
-      echo "[Router] '${ROUTER_NAME}' not found in OpenStack but create_router = false."
-      echo "[Router] Overriding to create_router = true so Terraform recreates it."
-      EXTRA_VARS="-var=create_router=true"
-    else
-      echo "[Router] Exists (${ROUTER_OS_ID}) — data source will resolve it."
-    fi
+    echo "[Router] Not found — Terraform will create it."
   fi
 
   # Sync the router interface — missing from state causes RouterInUse on re-runs
-  if [[ "${CREATE_NETWORK}" == "true" && -n "${ROUTER_OS_ID}" && -n "${SUBNET_NAME}" ]]; then
+  if [[ -n "${ROUTER_OS_ID}" && -n "${SUBNET_NAME}" ]]; then
     echo "[Router Interface] Checking subnet port attachment '${SUBNET_NAME}' ..."
     if ! in_state "openstack_networking_router_interface_v2.jumpbox[0]"; then
       IFACE_SUBNET_ID=$(exists_in_openstack "router_iface" "${ROUTER_OS_ID}/${SUBNET_NAME}")
@@ -213,6 +203,8 @@ if [[ -n "${ROUTER_NAME}" ]]; then
       echo "[Router Interface] In sync."
     fi
   fi
+else
+  echo "[Router] Skipped (create_router = false)."
 fi
 
 if [[ -n "${VM_NAME}" ]]; then
