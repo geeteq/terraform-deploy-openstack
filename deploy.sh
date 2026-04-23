@@ -207,8 +207,21 @@ else
   echo "[Router] Skipped (create_router = false)."
 fi
 
+VM_EXISTS=false
 if [[ -n "${VM_NAME}" ]]; then
-  sync_resource "VM" "openstack_compute_instance_v2.jumpbox" "vm" "${VM_NAME}"
+  VM_OS_ID=$(exists_in_openstack "vm" "${VM_NAME}")
+  if [[ -n "${VM_OS_ID}" ]]; then
+    VM_EXISTS=true
+    if ! in_state "openstack_compute_instance_v2.jumpbox"; then
+      echo "[VM] '${VM_NAME}' exists in OpenStack (${VM_OS_ID}) — importing to prevent recreation."
+      terraform import "openstack_compute_instance_v2.jumpbox" "${VM_OS_ID}"
+      echo "[VM] Import complete. Existing VM will not be recreated."
+    else
+      echo "[VM] '${VM_NAME}' in sync — will not be recreated."
+    fi
+  else
+    echo "[VM] '${VM_NAME}' not found — Terraform will create it."
+  fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -240,7 +253,11 @@ else
   echo "  Security group : USE     '${SG_NAME}'"
 fi
 
-echo "  VM             : CREATE  '${VM_NAME}' (${FLAVOR_NAME} / ${IMAGE_NAME} / ${AZ:-nova})"
+if [[ "${VM_EXISTS}" == "true" ]]; then
+  echo "  VM             : KEEP    '${VM_NAME}' (already exists — will not recreate)"
+else
+  echo "  VM             : CREATE  '${VM_NAME}' (${FLAVOR_NAME} / ${IMAGE_NAME} / ${AZ:-nova})"
+fi
 
 if [[ -n "${FLOATING_IP_POOL}" ]]; then
   echo "  Floating IP    : ALLOCATE from pool '${FLOATING_IP_POOL}'"

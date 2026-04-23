@@ -381,7 +381,7 @@ resource "openstack_compute_instance_v2" "jumpbox" {
   }
 
   lifecycle {
-    ignore_changes = [block_device]
+    ignore_changes = [block_device, user_data, security_groups]
   }
 
   depends_on = [
