@@ -42,9 +42,14 @@ CREATE_SG=$(get_var create_security_group)
 NETWORK_NAME=$(get_var network_name)
 CREATE_NETWORK=$(get_var create_network)
 SUBNET_NAME=$(get_var subnet_name)
+EXISTING_SUBNET_NAME=$(get_var existing_subnet_name)
 ROUTER_NAME=$(get_var router_name)
 CREATE_ROUTER=$(get_var create_router)
 VM_NAME=$(get_var vm_name)
+IMAGE_NAME=$(get_var image_name)
+FLAVOR_NAME=$(get_var flavor_name)
+AZ=$(get_var availability_zone)
+FLOATING_IP_POOL=$(get_var floating_ip_pool)
 
 echo "=== Pre-flight idempotency check ==="
 echo ""
@@ -212,6 +217,50 @@ fi
 
 if [[ -n "${VM_NAME}" ]]; then
   sync_resource "VM" "openstack_compute_instance_v2.jumpbox" "vm" "${VM_NAME}"
+fi
+
+# ---------------------------------------------------------------------------
+# Pre-apply summary
+# ---------------------------------------------------------------------------
+
+echo ""
+echo "=== Deployment summary ==="
+echo ""
+
+if [[ "${CREATE_NETWORK}" == "true" ]]; then
+  echo "  Network        : CREATE  '${NETWORK_NAME}' (subnet '${SUBNET_NAME}')"
+else
+  SUBNET_DISPLAY="${EXISTING_SUBNET_NAME:-<any>}"
+  echo "  Network        : USE     '${NETWORK_NAME}' (subnet '${SUBNET_DISPLAY}')"
+fi
+
+if [[ "${CREATE_ROUTER}" == "true" ]]; then
+  echo "  Router         : CREATE  '${ROUTER_NAME}'"
+elif [[ -n "${ROUTER_NAME}" ]]; then
+  echo "  Router         : USE     '${ROUTER_NAME}'"
+else
+  echo "  Router         : SKIP    (no router)"
+fi
+
+if [[ "${CREATE_SG}" == "true" ]]; then
+  echo "  Security group : CREATE  '${SG_NAME}'"
+else
+  echo "  Security group : USE     '${SG_NAME}'"
+fi
+
+echo "  VM             : CREATE  '${VM_NAME}' (${FLAVOR_NAME} / ${IMAGE_NAME} / ${AZ:-nova})"
+
+if [[ -n "${FLOATING_IP_POOL}" ]]; then
+  echo "  Floating IP    : ALLOCATE from pool '${FLOATING_IP_POOL}'"
+else
+  echo "  Floating IP    : SKIP"
+fi
+
+echo ""
+read -r -p "Proceed? [y/N] " CONFIRM
+if [[ ! "${CONFIRM}" =~ ^[Yy]$ ]]; then
+  echo "Aborted."
+  exit 0
 fi
 
 # ---------------------------------------------------------------------------

@@ -43,6 +43,12 @@ variable "subnet_name" {
   default     = "jumpbox-subnet"
 }
 
+variable "existing_subnet_name" {
+  description = "Name of the existing subnet to look up when create_network = false. Must match the IPv4 subnet name exactly."
+  type        = string
+  default     = ""
+}
+
 variable "network_cidr" {
   description = "CIDR block for the subnet (only used when create_network = true)"
   type        = string
@@ -227,6 +233,13 @@ data "openstack_networking_network_v2" "existing" {
   name  = var.network_name
 }
 
+data "openstack_networking_subnet_v2" "existing" {
+  count      = (!var.create_network && var.existing_subnet_name != "") ? 1 : 0
+  name       = var.existing_subnet_name
+  network_id = data.openstack_networking_network_v2.existing[0].id
+  ip_version = 4
+}
+
 resource "openstack_networking_network_v2" "jumpbox" {
   count = var.create_network ? 1 : 0
   name  = var.network_name
@@ -259,12 +272,14 @@ resource "openstack_networking_router_v2" "jumpbox" {
 locals {
   has_router = var.create_router || (!var.create_router && var.router_name != "")
   router_id  = var.create_router ? openstack_networking_router_v2.jumpbox[0].id : (var.router_name != "" ? data.openstack_networking_router_v2.existing[0].id : null)
+  # subnet_id for router interface: created subnet, or looked-up existing subnet
+  attach_subnet_id = var.create_network ? openstack_networking_subnet_v2.jumpbox[0].id : (var.existing_subnet_name != "" ? data.openstack_networking_subnet_v2.existing[0].id : null)
 }
 
 resource "openstack_networking_router_interface_v2" "jumpbox" {
-  count     = (var.create_network && local.has_router) ? 1 : 0
+  count     = (local.attach_subnet_id != null && local.has_router) ? 1 : 0
   router_id = local.router_id
-  subnet_id = openstack_networking_subnet_v2.jumpbox[0].id
+  subnet_id = local.attach_subnet_id
 }
 
 # ---------------------------------------------------------------------------

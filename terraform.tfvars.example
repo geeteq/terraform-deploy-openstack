@@ -2,15 +2,23 @@ cloud_name            = "openstack"
 external_network_name = "public"      # external network in OpenStack for router gateway / floating IPs
 
 # --- Network ---
-create_network = true                 # set to false if network already exists
-network_name   = "jumpbox-network"
-subnet_name    = "jumpbox-subnet"
-network_cidr   = "10.10.0.0/24"
+# create_network = true   → Terraform creates the network and subnet
+# create_network = false  → look up existing network by network_name; set existing_subnet_name to pin to the IPv4 subnet
+create_network        = false
+network_name          = "baremetal-tools"
+existing_subnet_name  = "baremetal-tools-10.0.0.0/24-v4"   # leave empty to skip subnet-level attachment
+
+# Only used when create_network = true:
+subnet_name     = "jumpbox-subnet"
+network_cidr    = "10.10.0.0/24"
 dns_nameservers = ["8.8.8.8", "8.8.4.4"]
 
 # --- Router ---
-create_router = true                  # set to false if router already exists
-router_name   = "jumpbox-router"
+# create_router = false, router_name = ""  → no router managed (default)
+# create_router = true,  router_name = "x" → create a new router named x
+# create_router = false, router_name = "x" → look up existing router named x and attach subnet
+create_router = false
+router_name   = ""
 
 # --- Security group ---
 create_security_group = true          # set to false if security group already exists
